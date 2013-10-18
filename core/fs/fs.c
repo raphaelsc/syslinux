@@ -9,9 +9,14 @@
 #include "dev.h"
 #include "fs.h"
 #include "cache.h"
+#include "multifs.h"
 
-/* The currently mounted filesystem */
-__export struct fs_info *this_fs = NULL;		/* Root filesystem */
+/* root_fs means the file system where ldlinux.sys lives in. */
+__export struct fs_info *root_fs = NULL;
+/* this_fs means the file system being currently used. */
+__export struct fs_info *this_fs = NULL;
+/* export p_ops to be used outside the core */
+__export const struct fs_ops **p_ops = NULL;
 
 /* Actual file structures (we don't have malloc yet...) */
 __export struct file files[MAX_OPEN];
@@ -344,6 +349,9 @@ __export int open_file(const char *name, int flags, struct com32_filedata *filed
 
     dprintf("open_file %s\n", name);
 
+    if (switch_fs(&name))
+	return -1;
+
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name, flags);
 
@@ -360,6 +368,9 @@ __export int open_file(const char *name, int flags, struct com32_filedata *filed
     filedata->size	= file->inode->size;
     filedata->blocklg2	= SECTOR_SHIFT(file->fs);
     filedata->handle	= rv;
+
+    restore_fs();
+    restore_chdir_start();
 
     return rv;
 }
@@ -395,6 +406,7 @@ void fs_init(const struct fs_ops **ops, void *priv)
 
     /* Default name for the root directory */
     fs.cwd_name[0] = '/';
+    p_ops = ops;
 
     while ((blk_shift < 0) && *ops) {
 	/* set up the fs stucture */
@@ -420,7 +432,7 @@ void fs_init(const struct fs_ops **ops, void *priv)
 	while (1)
 		;
     }
-    this_fs = &fs;
+    root_fs = this_fs = &fs;
 
     /* initialize the cache */
     if (fs.fs_dev && fs.fs_dev->cache_data)
@@ -434,8 +446,8 @@ void fs_init(const struct fs_ops **ops, void *priv)
     }
 
     if (fs.fs_ops->chdir_start) {
-	    if (fs.fs_ops->chdir_start() < 0)
-		    printf("Failed to chdir to start directory\n");
+	if (fs.fs_ops->chdir_start() < 0)
+	    printf("Failed to chdir to start directory\n");
     }
 
     SectorShift = fs.sector_shift;

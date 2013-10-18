@@ -16,7 +16,7 @@
  * implementation since the block(cluster) size in FAT is a bit big.
  *
  */
-void cache_init(struct device *dev, int block_size_shift)
+__export void cache_init(struct device *dev, int block_size_shift)
 {
     struct cache *prev, *cur;
     char *data = dev->cache_data;

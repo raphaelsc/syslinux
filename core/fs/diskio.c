@@ -21,13 +21,27 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
 /*
  * Initialize the device structure.
  */
-struct device * device_init(void *args)
+__export struct device *device_init(void *args)
 {
-    static struct device dev;
+    struct device *dev;
 
-    dev.disk = firmware->disk_init(args);
-    dev.cache_size = 128*1024;
-    dev.cache_data = malloc(dev.cache_size);
+    dev = malloc(sizeof(struct device));
+    if (!dev)
+        return NULL;
 
-    return &dev;
+    dev->disk = firmware->disk_init(args);
+    if (!dev->disk)
+	goto out;
+
+    dev->cache_size = 128*1024;
+    dev->cache_data = malloc(dev->cache_size);
+    if (!dev->cache_data)
+	goto out_disk;
+
+    return dev;
+out_disk:
+    free(dev->disk);
+out:
+    free(dev);
+    return NULL;
 }
