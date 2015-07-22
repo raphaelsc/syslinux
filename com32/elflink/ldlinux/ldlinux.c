@@ -5,6 +5,7 @@
 #include <string.h>
 #include <core.h>
 #include <fs.h>
+#include <multifs.h>
 #include "cli.h"
 #include "console.h"
 #include "com32.h"
@@ -13,6 +14,7 @@
 #include "syslinux/adv.h"
 #include "syslinux/boot.h"
 #include "syslinux/config.h"
+#include "syslinux/multifs_utils.h"
 
 #include <sys/module.h>
 
@@ -292,6 +294,11 @@ static void __destructor close_console(void)
 		close(i);
 }
 
+void do_init_multifs(void)
+{
+	multifs_ops->init(bios_find_partition);
+}
+
 void ldlinux_console_init(void)
 {
 	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
@@ -302,6 +309,8 @@ __export int main(int argc __unused, char **argv)
 	const void *adv;
 	const char *cmdline;
 	size_t count = 0;
+
+	do_init_multifs();
 
 	ldlinux_console_init();
 
